@@ -1,0 +1,249 @@
+\documentclass{beamer}
+
+% Draft (faster compilation, no images)
+%\documentclass[draft]{beamer}
+
+% Notes on the right
+%\usepackage{pgfpages}
+%\setbeameroption{show notes on second screen=right}
+
+% Handout, no overlays
+%\documentclass[handout]{beamer}
+
+%\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+
+\usetheme[
+%  sectionpage=none,
+  subsectionpage=none,
+  numbering=none,
+  progressbar=foot
+]{metropolis}
+\usecolortheme{owl} % Dark theme
+\setmonofont{Input Mono}
+\definecolor{PowerDNSOrange}{RGB}{233,102,25}
+
+% Some Open-Xchange colors
+\definecolor{OXOrange}{RGB}{230,110,0}
+\definecolor{OXGraphiteBlack}{RGB}{45,45,45}
+\definecolor{OXSilverGrey}{RGB}{220,220,220}
+\definecolor{OXGrey}{RGB}{135,135,135}
+
+\definecolor{ProgressBarBG}{RGB}{238,238,236}
+\setbeamercolor{progress bar}{fg=PowerDNSOrange, bg=OXGrey}
+
+% Webicons
+\usepackage{fontawesome}
+
+\usepackage{minted}
+\usemintedstyle{native}
+\setminted[lua]{
+  linenos=true,
+  breaklines=true,
+  frame=lines,
+  fontsize=\footnotesize
+}
+\setminted[shell]{ % used for output
+  style=bw,
+  fontsize=\tiny
+}
+\renewcommand{\theFancyVerbLine}{\ttfamily
+  \textcolor[rgb]{0.5,0.5,1.0}{\scriptsize
+  \arabic{FancyVerbLine}}}
+
+% Non-retarded image import
+\usepackage{graphicx}
+
+% PDF niceness
+\usepackage{hyperref}
+
+% No nav symbols on the PDF
+\beamertemplatenavigationsymbolsempty
+
+\title[dnsdist]{dnsdist: Denial of Service Protection for DNS}
+\author{\textbf{Pieter Lexis}\\PowerDNS Engineer}
+\date{}
+\titlegraphic{
+  \vfill\large{\faicon{twitter-square}~lieter\_\hfill pieterlexis~\faicon{github-square}}\\
+              \small{\faicon{twitter-square}~PowerDNS\hfill PowerDNS~\faicon{github-square}}\\
+              \vspace{150px}
+              \center{\includegraphics[width=.4\textwidth]{img/powerdns-logo.eps}}
+}
+
+\hypersetup{
+  pdfauthor={Pieter Lexis},
+  pdfsubject={},
+  pdftitle={dnsdist: DNS DoS protection and loadbalancing},
+  pdfkeywords={dnsdist DNS DoS}
+}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Protecting DNS Servers From Denial of Service Attacks}
+  \begin{block}{Common DNS protection steps}
+    \begin{enumerate}
+      \item \texttt{tcpdump}
+      \item \texttt{grep}/\texttt{awk}
+      \item **cursing**
+      \item \texttt{iptables -A INPUT -i eth0 -p udp --port 53 -m string --hex-string "|07|example|03|com" -algo bm -j DROP}
+      \item Realising it is incomplete
+      \item GOTO 1
+    \end{enumerate}
+  \end{block}
+  \note{
+    \begin{itemize}
+      \item How to filter on your auth without shunting legitimate traffic
+      \item A recursor client needs service, but is hammering about 1 name
+    \end{itemize}
+  }
+\end{frame}
+
+\begin{frame}[fragile,allowframebreaks]{Live traffic inspection}
+  \begin{minted}{shell}
+> topQueries(5)
+   1  <snip>.ru.                               2358 23.6%
+   2  localhost.                               2281 22.8%
+   3  time.apple.com.                           537  5.4%
+   4  <snip>.de.                                144  1.4%
+   5  time.euro.apple.com.                      109  1.1%
+   6  Rest                                     4571 45.7%
+  \end{minted}
+  \begin{minted}{shell}
+> topResponses(2, dnsdist.SERVFAIL)
+   1  <snip>.in-addr.arpa.                       31 22.1%
+   2  <snip>.de.                                 15 10.7%
+   3  Rest                                       94 67.1%
+  \end{minted}
+  \framebreak
+  \begin{minted}{shell}
+> grepq('ru', 2)
+Time  Client              Server         ID    Name        Type Lat. TC RD AA Rcode
+-0.2  192.168.1.92:33846                 4905  <snip>.ru.  ANY          RD    Question
+-0.2  192.168.1.92:33846  127.0.0.1:5300 4905  <snip>.ru.  ANY  0.2     RD    Non-Existent domain
+-0.2  192.168.1.92:33846                 4907  <snip>.ru.  ANY          RD    Question
+-0.2  192.168.1.92:33846  127.0.0.1:5300 4907  <snip>.ru.  ANY  0.3     RD    Non-Existent domain
+
+> grepq({'apple.com.', "100ms"}, 5)
+Time    Client             Server         ID    Name           Type Lat.  TC RD AA Rcode
+-127.6  192.168.1.92:43583 127.0.0.1:5300 44987 cl4.apple.com. A    247.2    RD    No Error. 4 answers
+  \end{minted}
+\end{frame}
+
+\begin{frame}[fragile]{Different Ways of Limiting Traffic}
+  \begin{minted}{lua}
+-- Drop all queries for all questions under .example
+addDomainBlock("example.")
+
+-- Limit /24's on IPv4 and /64's on IPv6 to 5 QPS
+addAction(MaxQPSIPRule(5, 24, 64), DropAction())
+
+-- Create a NetMaskGroup for matching
+nmg = newNMG()
+nmg:addMask('198.51.100.0/24')
+nmg:addMask('2001:db8:0:12::/48')
+-- match QTYPE AAAA and QNAME containing powerdns
+selector = AndRule{QTypeRule(dnsdist.AAAA), RegexRule('powerdns')}
+-- Add the netmask group to the rule
+selector = AndRule{selector, NetmaskGroupRule(nmg)}
+-- Delay by 900 ms
+addAction(selector, DelayAction(900))
+  \end{minted}
+\end{frame}
+
+\begin{frame}[fragile]{Automatically Block Traffic}
+  \begin{minted}{lua}
+function maintenance()
+  -- Get the addresses that had more than 100 NXDOMAINs in the last 10 seconds
+  addresses = exceedNXDOMAINS(100, 10)
+  -- Block the addresses for a minute
+  addDynBlocks(addresses, "Exceeded NXDomain", 60)
+end
+  \end{minted}
+\end{frame}
+
+\begin{frame}{Traffic Matching and Actions}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      {\tiny
+        \begin{block}{Selectors}
+          \begin{itemize}
+            \item Source Address
+            \item Destination address
+            \item QNAME
+            \item QTYPE
+            \item Flags
+            \item OPCODE
+            \item TCP query
+            \item Number of entries in a packet section
+            \item Number of labels in the name
+            \item Regular Expression
+            \item Combine selectors with And, Or and Not
+          \end{itemize}
+        \end{block}
+      }
+    \end{column}
+
+    \begin{column}{0.5\textwidth}
+      {\tiny
+        \begin{block}{Actions}
+          \begin{itemize}
+            \item Drop
+            \item Route to Pool
+            \item Truncate (TC=1)
+            \item Return SERVFAIL, NOTIMP, REFUSED
+            \item Return custom answer
+            \item Delay response by n milliseconds
+            \item Remove flags before passing to backend
+            \item Add originating IP address in an EDNS option
+            \item Log query to TCP/IP host via Protobuf
+            \item Increase statistics counter
+            \item Strip EDNS Client Subnet
+            \item Send SNMP trap
+          \end{itemize}
+        \end{block}
+      }
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}[standout]
+  Packages at \url{https://repo.powerdns.com}
+  \vfill
+  Documentation at \url{http://dnsdist.org}
+  \vfill
+  {\huge Questions?\\I'll be around this whole week}
+\end{frame}
+
+\begin{frame}{Other \texttt{dnsdist} Scenarios}
+  \begin{itemize}
+    \item Statistics for legacy nameserver platform
+    \item Realtime inspection of traffic
+    \item Send DNSSEC queries to DNSSEC servers
+    \item Send abusive traffic to ``abuse pool''
+    \item Fix up case sensitive backends / clients
+    \item Use regular expressions to route queries
+    \item Client DoS worries: limit each host QPS or per /64
+    \item Large scale DoS: absorb \& filter at million QPS rates
+  \end{itemize}
+  \note{
+    \begin{itemize}
+      \item Observations when running:
+        \begin{itemize}
+          \item Lower Query/Response latency (50\%)
+        \end{itemize}
+      \item users
+        \begin{itemize}
+          \item Mobile Operator in CZ (DoS mitigation and relieving burden on existing BIND cluster)
+          \item Biggest domain-name registrar in .nl
+          \item Yeti DNS project (TeeAction)
+        \end{itemize}
+      \item Filtering can be done in the kernel (EBPF)
+      \item Your pipe or router will be full before dnsdist is the bottleneck
+    \end{itemize}
+  }
+\end{frame}
+\end{document}
