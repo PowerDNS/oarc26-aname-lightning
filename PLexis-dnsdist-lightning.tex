@@ -133,22 +133,33 @@ Time    Client             Server         ID    Name           Type Lat.  TC RD 
   \end{minted}
 \end{frame}
 
-\begin{frame}[fragile]{Different Ways of Limiting Traffic}
+\begin{frame}[fragile,allowframebreaks]{Different Ways of Limiting Traffic}
   \begin{minted}{lua}
 -- Drop all queries for all questions under .example
 addDomainBlock("example.")
+  \end{minted}
 
+  \framebreak
+
+  \begin{minted}{lua}
 -- Limit /24's on IPv4 and /64's on IPv6 to 5 QPS
 addAction(MaxQPSIPRule(5, 24, 64), DropAction())
+  \end{minted}
 
+  \framebreak
+
+  \begin{minted}{lua}
 -- Create a NetMaskGroup for matching
 nmg = newNMG()
-nmg:addMask('198.51.100.0/24')
+nmg:addMask('192.0.2.0/27')
 nmg:addMask('2001:db8:0:12::/48')
+
 -- match QTYPE AAAA and QNAME containing powerdns
 selector = AndRule{QTypeRule(dnsdist.AAAA), RegexRule('powerdns')}
--- Add the netmask group to the rule
+
+-- Add the netmask group to the rule selector
 selector = AndRule{selector, NetmaskGroupRule(nmg)}
+
 -- Delay by 900 ms
 addAction(selector, DelayAction(900))
   \end{minted}
@@ -211,11 +222,11 @@ end
 \end{frame}
 
 \begin{frame}[standout]
-  Packages at \url{https://repo.powerdns.com}
+  Packages at\\\url{https://repo.powerdns.com}
   \vfill
-  Documentation at \url{http://dnsdist.org}
+  Documentation at\\\url{http://dnsdist.org}
   \vfill
-  {\huge Questions?\\I'll be around this whole week}
+  Help and Support at\\\url{irc://chat.oftc.net/\#powerdns}
 \end{frame}
 
 \begin{frame}{Other \texttt{dnsdist} Scenarios}
