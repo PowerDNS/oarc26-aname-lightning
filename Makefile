@@ -1,4 +1,4 @@
-DOCNAME=PLexis-dnsdist-lightning
+DOCNAME=pvdijk-aname-lightning
 PDFLATEX=lualatex -shell-escape
 
 all: $(DOCNAME).pdf
