@@ -7,4 +7,4 @@ $(DOCNAME).pdf:
 
 $(DOCNAME).ps:
 
-include /usr/include/LaTeX.mk
+include /usr/local/texlive/2016/texmf-dist/doc/support/latex-make/LaTeX.mk
