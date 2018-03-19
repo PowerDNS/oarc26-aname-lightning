@@ -62,14 +62,14 @@
 \beamertemplatenavigationsymbolsempty
 
 \title[aname]{ANAME: Address-specific DNS Name Redirection (draft-ietf-dnsop-aname)}
-\author{\textbf{Peter van Dijk}\\Senior PowerDNS Engineer\\with Evan Hunt and Anthony Eden}
+\author{\textbf{Evan Hunt}\\with Anthony Eden and Peter van Dijk}
 \date{}
-\titlegraphic{
-\vfill\large{\href{https://twitter.com/Habbie}{\faicon{twitter-square}~Habbie} \hfill \href{https://github.com/Habbie}{Habbie~\faicon{github-square}}}\\
-              \small{\href{https://twitter.com/PowerDNS}{\faicon{twitter-square}~PowerDNS} \hfill \href{https://github.com/PowerDNS}{PowerDNS~\faicon{github-square}}}\\
-              \vspace{150px}
-              \center{\includegraphics[width=.4\textwidth]{img/powerdns-logo.eps}}
-}
+% \titlegraphic{
+% \vfill\large{\href{https://twitter.com/Habbie}{\faicon{twitter-square}~Habbie} \hfill \href{https://github.com/Habbie}{Habbie~\faicon{github-square}}}\\
+%               \small{\href{https://twitter.com/PowerDNS}{\faicon{twitter-square}~PowerDNS} \hfill \href{https://github.com/PowerDNS}{PowerDNS~\faicon{github-square}}}\\
+%               \vspace{150px}
+%               \center{\includegraphics[width=.4\textwidth]{img/powerdns-logo.eps}}
+% }
 
 \hypersetup{
   pdfauthor={Peter van Dijk},
@@ -110,58 +110,24 @@ www IN CNAME example.com.my-cdn.example.net.
   }
 \end{frame}
 
-\begin{frame}[fragile]{Usage}
-  \begin{minted}[fontsize=\large]{shell}
-$ORIGIN example.com.
-@   IN SOA   ...
-@   IN NS    ns1
-@   IN ANAME example.com.my-cdn.example.net.
-www IN CNAME example.com.my-cdn.example.net.
-  \end{minted}
-\end{frame}
-
-\begin{frame}[fragile]{Remember CNAME?}
-  \begin{minted}[fontsize=\normalsize]{shell}
-;; QUESTION SECTION:
-;www.example.com.   IN  A
-
-;; ANSWER SECTION:
-www.example.com. IN CNAME example.com.my-cdn.example.net.
-example.com.my-cdn.example.net. IN A 198.51.100.1
-  \end{minted}
-\end{frame}
-
-\begin{frame}[fragile]{Compare ANAME}
-  \begin{minted}[fontsize=\normalsize]{shell}
-;; QUESTION SECTION:
-;example.com.   IN  A
-
-;; ANSWER SECTION:
-example.com.  86400 IN ANAME example.com.my-cdn.example.net.
-example.com.  86400 IN A     198.51.100
-  \end{minted}
-\end{frame}
-
-\begin{frame}{Concerns}
+\begin{frame}{Current draft}
   \begin{itemize}
-    \item DNSSEC
-    \item loops
-    \item GSLB
-    \item TTL limiting/counting down
+    \item long, complex
+    \item auth/resolver behaviour not separated well
+    \item we want to split it:
+    \begin{itemize}
+      \item one document for auth
+      \item one document for resolvers
+    \end{itemize}
   \end{itemize}
 \end{frame}
 
-\begin{frame}{Next steps}
-  \begin{itemize}
-    \item get some code running
-    \item restructure the draft (separate primary and secondary auth behaviour)
-    \item more examples
-    \item figure out what to do with IPv23
-  \end{itemize}
-\end{frame}
-
-\begin{frame}{Questions?}
-Questions? Comments?
+\begin{frame}{Thoughts?}
+Thoughts? Questions? Comments?
+\newline
+\newline
+\newline
+Hum?
 
 \end{frame}
 
